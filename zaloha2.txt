@@ -1,0 +1,170 @@
+#include "DHT.h"
+#include <DS3231.h>
+#include <LiquidCrystal.h>
+
+
+#define DHTPIN 53
+#define DHTTYPE DHT11
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// select the pins used on the LCD panel
+LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
+
+// define some values used by the panel and buttons
+int lcd_key     = 0;
+int adc_key_in  = 0;
+#define btnRIGHT  0
+#define btnUP     1
+#define btnDOWN   2
+#define btnLEFT   3
+#define btnSELECT 4
+#define btnNONE   5
+
+// read the buttons
+int read_LCD_buttons()
+{
+ adc_key_in = analogRead(0);      // read the value from the sensor 
+ if (adc_key_in > 1000) return btnNONE; // We make this the 1st option for speed reasons since it will be the most likely result
+ if (adc_key_in < 50)   return btnRIGHT;  
+ if (adc_key_in < 250)  return btnUP; 
+ if (adc_key_in < 450)  return btnDOWN; 
+ if (adc_key_in < 650)  return btnLEFT; 
+ if (adc_key_in < 850)  return btnSELECT;  
+
+ return btnNONE;  // when all others fail, return this...
+}
+
+// Init the DS3231 using the hardware interface
+DS3231  rtc(SDA, SCL);
+
+int relayPin1 = 23; //modrá
+int relayPin2 = 25; //bila
+int relayPin3 = 27; //cervena
+
+
+Time  t;
+
+bool pos = true;
+
+
+
+
+void setup()
+{
+  pinMode(relayPin1, OUTPUT); 
+  pinMode(relayPin2, OUTPUT);
+  pinMode(relayPin3, OUTPUT);
+  
+  // Setup Serial connection
+  Serial.begin(9600);
+
+  lcd.begin(16, 2);              // start the library
+
+  // Initialize the rtc object
+  rtc.begin();
+  
+  // The following lines can be uncommented to set the date and time
+  //rtc.setDOW(MONDAY);     // Set Day-of-Week to SUNDAY
+  //rtc.setTime(12, 20, 00);     // Set the time to 12:00:00 (24hr format)
+  //rtc.setDate(5, 3, 2018);   // Set the date to January 1st, 2014
+
+  dht.begin();
+}
+void loop()
+{
+  t = rtc.getTime();
+  int timer= (t.hour);
+  Serial.print(timer);
+  
+  lcd_key = read_LCD_buttons();  
+
+   if(lcd_key == btnSELECT){
+    pos = !pos;
+    lcd.clear();
+    delay(200);
+    }
+
+  if(timer >= 6 && timer <= 10){
+    digitalWrite(relayPin1, 0);
+    
+    digitalWrite(relayPin2, 0);
+    
+    digitalWrite(relayPin3, 1);
+
+  }
+
+  else if(timer >= 11 && timer <= 13){
+    digitalWrite(relayPin1, 0);
+    
+    digitalWrite(relayPin2, 0);
+    
+    digitalWrite(relayPin3, 0);
+
+  }
+  
+  else if(timer >= 14 && timer <= 18){
+    digitalWrite(relayPin1, 1);
+    
+    digitalWrite(relayPin2, 0);
+    
+    digitalWrite(relayPin3, 0);
+
+  }
+  
+  else{
+    digitalWrite(relayPin1, 1);
+    
+    digitalWrite(relayPin2, 1);
+
+    digitalWrite(relayPin3, 1);
+    
+    }
+
+  if(pos==true){
+
+  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  float h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+    
+  lcd.setCursor(0,0);           
+  lcd.print("teplota: "); 
+  lcd.setCursor(9,0);            
+  lcd.print(t); // 
+  lcd.setCursor(11,0);
+  lcd.print("*C ");
+  
+  lcd.setCursor(0,1);            
+  lcd.print("vlhkost: "); 
+  lcd.setCursor(9,1);            
+  lcd.print(h); 
+  lcd.setCursor(11,1);
+  lcd.print("% ");
+  
+  delay(1000);
+  }
+  if(pos==false){
+  
+    
+  t = rtc.getTime();
+    
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print(t.hour);
+  lcd.setCursor(4,0);
+  lcd.print("Hodin");
+    
+  lcd.setCursor(0,1);
+  lcd.print("CAS:");
+  lcd.setCursor(5,1);
+  lcd.println(rtc.getTimeStr());
+  lcd.setCursor(13,1);
+  lcd.print("     ");
+  delay(1000);
+  }
+
+  
+ 
+    
+}
